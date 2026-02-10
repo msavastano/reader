@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { JSDOM } from 'jsdom';
-import { Readability } from '@mozilla/readability';
+// Imports moved to dynamic import inside handler to catch initialization errors
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,6 +7,18 @@ export async function POST(req: NextRequest) {
 
     if (!url || typeof url !== 'string') {
       return NextResponse.json({ error: 'URL is required' }, { status: 400 });
+    }
+
+    // Dynamic import to prevent cold start crashes if dependencies fail
+    let JSDOM, Readability;
+    try {
+      const jsdomModule = await import('jsdom');
+      const readabilityModule = await import('@mozilla/readability');
+      JSDOM = jsdomModule.JSDOM;
+      Readability = readabilityModule.Readability;
+    } catch (importError: any) {
+      console.error('Dependency Import Error:', importError);
+      return NextResponse.json({ error: 'Server configuration error: Failed to load parsing libraries.', details: importError.message }, { status: 500 });
     }
 
     // Validate URL
@@ -18,25 +29,40 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid URL' }, { status: 400 });
     }
 
-    // Fetch the page
-    const response = await fetch(parsedUrl.toString(), {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Sec-Ch-Ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
-        'Sec-Ch-Ua-Mobile': '?0',
-        'Sec-Ch-Ua-Platform': '"Windows"',
-        'Upgrade-Insecure-Requests': '1',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-      },
-    });
+    // Create a controller to abort the fetch if it takes too long
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+
+    let response;
+    try {
+      // Fetch the page
+      response = await fetch(parsedUrl.toString(), {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Sec-Ch-Ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
+          'Sec-Ch-Ua-Mobile': '?0',
+          'Sec-Ch-Ua-Platform': '"Windows"',
+          'Upgrade-Insecure-Requests': '1',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
+        signal: controller.signal,
+      });
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        return NextResponse.json({ error: 'Request to target site timed out' }, { status: 504 });
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
       return NextResponse.json(
         { error: `Failed to fetch page: ${response.status} ${response.statusText}` },
-        { status: 502 }
+        { status: response.status === 403 || response.status === 401 ? 403 : 502 }
       );
     }
 
@@ -165,10 +191,10 @@ export async function POST(req: NextRequest) {
       siteName,
       wordCount,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Scrape error:', error);
     return NextResponse.json(
-      { error: 'Failed to scrape story. The site may block automated access.' },
+      { error: 'Failed to scrape story. The site may block automated access.', details: error.message },
       { status: 500 }
     );
   }
