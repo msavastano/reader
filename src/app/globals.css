@@ -459,6 +459,7 @@ select {
   margin-bottom: 6px;
   line-height: 1.3;
   display: -webkit-box;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
@@ -1554,4 +1555,83 @@ select {
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   border: 0;
+}
+
+/* ============ CHAT MARKDOWN ============ */
+
+.chat-message-assistant p {
+  margin-bottom: 0.5em;
+}
+
+.chat-message-assistant p:last-child {
+  margin-bottom: 0;
+}
+
+.chat-message-assistant ul, 
+.chat-message-assistant ol {
+  margin-bottom: 0.5em;
+  padding-left: 1.5em;
+}
+
+.chat-message-assistant li {
+  margin-bottom: 0.25em;
+}
+
+.chat-message-assistant code {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.85em;
+}
+
+/* Dark mode adjustment for inline code */
+[data-theme="dark"] .chat-message-assistant code,
+[data-theme="midnight"] .chat-message-assistant code {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.chat-message-assistant pre {
+  background: rgba(0, 0, 0, 0.04);
+  padding: 0.8em;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin-bottom: 0.8em;
+}
+
+/* Dark mode adjustment for pre blocks */
+[data-theme="dark"] .chat-message-assistant pre,
+[data-theme="midnight"] .chat-message-assistant pre {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.chat-message-assistant pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+.chat-message-assistant blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 0.8em;
+  margin-left: 0;
+  margin-bottom: 0.5em;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.chat-message-assistant h1,
+.chat-message-assistant h2,
+.chat-message-assistant h3,
+.chat-message-assistant h4 {
+  font-weight: 600;
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  font-size: 1rem;
+}
+
+.chat-message-assistant h1:first-child,
+.chat-message-assistant h2:first-child,
+.chat-message-assistant h3:first-child {
+  margin-top: 0;
 }

@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { MessageCircle, X, Send, Trash2 } from 'lucide-react';
 import { getChatHistory, saveChatHistory, clearChatHistory } from '@/lib/storage';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -94,17 +96,6 @@ export default function ChatBot() {
     clearChatHistory();
   };
 
-  // Render markdown-like content (basic bold, italic, links)
-  const renderContent = (text: string) => {
-    // Process line by line for basic formatting
-    return text.split('\n').map((line, i) => (
-      <span key={i}>
-        {i > 0 && <br />}
-        {line}
-      </span>
-    ));
-  };
-
   if (!isOpen) {
     return (
       <button
@@ -155,7 +146,18 @@ export default function ChatBot() {
             key={i}
             className={`chat-message ${msg.role === 'user' ? 'chat-message-user' : 'chat-message-assistant'}`}
           >
-            {renderContent(msg.content)}
+            {msg.role === 'assistant' ? (
+                <ReactMarkdown 
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />
+                  }}
+                >
+                  {msg.content}
+                </ReactMarkdown>
+             ) : (
+                msg.content
+             )}
           </div>
         ))}
 
