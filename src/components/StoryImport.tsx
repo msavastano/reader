@@ -37,10 +37,16 @@ export default function StoryImport({ onStoryImported }: StoryImportProps) {
         body: JSON.stringify({ url: url.trim() }),
       });
 
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        // Response was not JSON (e.g. generic HTML error page)
+        throw new Error(`Server returned ${res.status} ${res.statusText}`);
+      }
 
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to import story');
+        throw new Error(data.error || `Failed to import: ${res.status} ${res.statusText}`);
       }
 
       const story: Story = {
