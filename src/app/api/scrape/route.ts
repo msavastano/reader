@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-// Imports moved to dynamic import inside handler to catch initialization errors
+import { JSDOM } from 'jsdom';
+import { Readability } from '@mozilla/readability';
+
+export const runtime = 'nodejs'; // Force Node.js runtime (not Edge) for JSDOM support
 
 export async function POST(req: NextRequest) {
   try {
@@ -7,18 +10,6 @@ export async function POST(req: NextRequest) {
 
     if (!url || typeof url !== 'string') {
       return NextResponse.json({ error: 'URL is required' }, { status: 400 });
-    }
-
-    // Dynamic import to prevent cold start crashes if dependencies fail
-    let JSDOM, Readability;
-    try {
-      const jsdomModule = await import('jsdom');
-      const readabilityModule = await import('@mozilla/readability');
-      JSDOM = jsdomModule.JSDOM;
-      Readability = readabilityModule.Readability;
-    } catch (importError: any) {
-      console.error('Dependency Import Error:', importError);
-      return NextResponse.json({ error: 'Server configuration error: Failed to load parsing libraries.', details: importError.message }, { status: 500 });
     }
 
     // Validate URL
