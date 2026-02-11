@@ -16,44 +16,150 @@ interface ReaderProps {
  * Parse HTML content into an array of block-level HTML strings (paragraphs, etc).
  * Flattens any wrapper divs that Readability may add around the content.
  */
+const BLOCK_TAGS = new Set([
+  'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
+  'ul', 'ol', 'li', 'blockquote', 'pre', 'hr', 'table', 
+  'div', 'section', 'article', 'main', 'header', 'footer', 'aside'
+]);
+
+/**
+ * Parse HTML content into an array of block-level HTML strings.
+ * Handles unwrapping containers and splitting large text blocks.
+ */
 function parseBlocks(html: string): string[] {
   const div = document.createElement('div');
   div.innerHTML = html;
 
   const blocks: string[] = [];
+  const INLINE_BUFFER_LIMIT = 2000; // split text blobs larger than this
 
-  function collectBlocks(parent: Element) {
-    for (const child of Array.from(parent.children)) {
-      const tag = child.tagName.toLowerCase();
-      // If it's a wrapper div with children, recurse into it
-      if (tag === 'div' && child.children.length > 0) {
-        collectBlocks(child);
-      } else {
-        // It's a real block element (p, h1, h2, blockquote, etc.)
-        blocks.push(child.outerHTML);
-      }
+  function isBlock(node: Node): boolean {
+    return node.nodeType === Node.ELEMENT_NODE && 
+           BLOCK_TAGS.has((node as Element).tagName.toLowerCase());
+  }
+
+
+
+  /**
+   * Helper to process a potential block element.
+   * If it's small, returns [outerHTML].
+   * If it's large, splits it into multiple P tags.
+   */
+  function processBlockElement(el: Element): string[] {
+    const tagName = el.tagName.toLowerCase();
+    
+    // Don't split images or rules
+    if (tagName === 'img' || tagName === 'hr') {
+        return [el.outerHTML];
+    }
+
+    const textLen = el.textContent?.length || 0;
+    
+    if (textLen <= INLINE_BUFFER_LIMIT) {
+        return [el.outerHTML];
+    }
+    
+    // It's a large block. Try to split it.
+    const result: string[] = [];
+    const htmlContent = el.innerHTML;
+    
+    // 1. Split by <br>
+    const partsByBr = htmlContent.split(/<br\s*\/?>/i);
+    
+    if (partsByBr.length > 1) {
+        partsByBr.forEach(part => {
+             // If the part is still huge, force split it
+             const partLen = part.replace(/<[^>]+>/g, '').length;
+             if (partLen > INLINE_BUFFER_LIMIT) {
+                 const sentences = part.split(/(\.[ \t]+)/); 
+                 let chunk = '';
+                 for (let i = 0; i < sentences.length; i++) {
+                     chunk += sentences[i];
+                     if (chunk.length > INLINE_BUFFER_LIMIT) {
+                          result.push(`<p>${chunk}</p>`);
+                          chunk = '';
+                     }
+                 }
+                 if (chunk.trim()) result.push(`<p>${chunk}</p>`);
+             } else {
+                 if (part.trim()) result.push(`<p>${part.trim()}</p>`);
+             }
+        });
+    } else {
+         // No BRs. Force split by sentences.
+         const sentences = htmlContent.split(/(\.[ \t]+)/); 
+         let chunk = '';
+         for (let i = 0; i < sentences.length; i++) {
+             chunk += sentences[i];
+             if (chunk.length > INLINE_BUFFER_LIMIT) {
+                  result.push(`<p>${chunk}</p>`);
+                  chunk = '';
+             }
+         }
+         if (chunk.trim()) result.push(`<p>${chunk}</p>`);
+    }
+    
+    // If somehow we failed to split it (empty result), fallback
+    if (result.length === 0) {
+        return [el.outerHTML];
+    }
+    
+    return result;
+  }
+
+  function collectBlocks(parent: Node) {
+    const childNodes = Array.from(parent.childNodes);
+    const hasBlockChildren = childNodes.some(isBlock);
+    
+    // If it's a structural wrapper (or has block children), we drill down
+    const tag = parent.nodeType === Node.ELEMENT_NODE ? (parent as Element).tagName.toLowerCase() : '';
+    const isAlwaysUnwrap = ['article', 'main', 'section', 'div'].includes(tag);
+
+    if (hasBlockChildren || (isAlwaysUnwrap && parent !== div)) {
+      // Process mixed content: group inline nodes, recurse on block nodes
+      let inlineBuffer: Node[] = [];
+
+      const flushBuffer = () => {
+        if (inlineBuffer.length === 0) return;
+        
+        // Check if buffer is just empty text
+        const textContent = inlineBuffer.map(n => n.textContent).join('').trim();
+        if (!textContent && !inlineBuffer.some(n => n.nodeName === 'IMG')) {
+          inlineBuffer = [];
+          return;
+        }
+
+        // Create a wrapper for this inline chunk
+        const wrapper = document.createElement('p');
+        inlineBuffer.forEach(n => wrapper.appendChild(n.cloneNode(true)));
+        
+        // Use the shared helper to process this wrapper
+        const processed = processBlockElement(wrapper);
+        blocks.push(...processed);
+        
+        inlineBuffer = [];
+      };
+
+      childNodes.forEach(node => {
+        if (isBlock(node)) {
+          flushBuffer();
+          collectBlocks(node);
+        } else {
+          inlineBuffer.push(node);
+        }
+      });
+      flushBuffer();
+
+    } else {
+      // Leaf block
+      if (parent === div) return;
+      
+      const processed = processBlockElement(parent as Element);
+      blocks.push(...processed);
     }
   }
 
   collectBlocks(div);
-
-  // If we couldn't find any blocks, split by <p>, <br>, etc.
-  if (blocks.length === 0) {
-    // Fallback: split text into chunks of ~500 chars at sentence boundaries
-    const text = div.textContent || '';
-    const sentences = text.split(/(?<=[.!?])\s+/);
-    let chunk = '';
-    for (const s of sentences) {
-      if (chunk.length + s.length > 500 && chunk.length > 0) {
-        blocks.push(`<p>${chunk}</p>`);
-        chunk = s;
-      } else {
-        chunk += (chunk ? ' ' : '') + s;
-      }
-    }
-    if (chunk) blocks.push(`<p>${chunk}</p>`);
-  }
-
   return blocks;
 }
 
@@ -462,6 +568,8 @@ export default function Reader({ story, onBack }: ReaderProps) {
 
       {/* Word Define tooltip & overlay */}
       <WordDefine containerRef={contentRef} />
+      
+
     </div>
   );
 }
