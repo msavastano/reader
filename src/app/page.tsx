@@ -3,42 +3,49 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BookOpen } from 'lucide-react';
 import { Story } from '@/lib/types';
-import { getStories, deleteStory, getSettings } from '@/lib/storage';
+import { getStories, deleteStory, getSettings, getCurrentUser } from '@/app/actions';
 import StoryImport from '@/components/StoryImport';
 import Library from '@/components/Library';
 import Reader from '@/components/Reader';
 import ChatBot from '@/components/ChatBot';
+import UserMenu from '@/components/UserMenu';
 
 export default function Home() {
   const [stories, setStories] = useState<Story[]>([]);
   const [activeStory, setActiveStory] = useState<Story | null>(null);
+  const [user, setUser] = useState<{name?: string | null, email?: string | null, image?: string | null} | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    setStories(getStories());
+    getStories().then(setStories);
 
     // Apply saved theme
-    const settings = getSettings();
-    document.documentElement.setAttribute('data-theme', settings.theme);
+    getSettings().then(settings => {
+        document.documentElement.setAttribute('data-theme', settings.theme);
+    });
+
+    getCurrentUser().then(setUser);
   }, []);
 
   const handleStoryImported = useCallback((story: Story) => {
-    setStories(getStories());
+    getStories().then(setStories);
   }, []);
 
   const handleOpenStory = useCallback((id: string) => {
-    const s = getStories().find((s) => s.id === id);
+    // We can rely on the `stories` state since it's kept up to date
+    const s = stories.find((s) => s.id === id);
     if (s) setActiveStory(s);
-  }, []);
+  }, [stories]);
 
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const handleDeleteStory = useCallback((id: string) => {
     if (pendingDeleteId === id) {
       // Second click — actually delete
-      deleteStory(id);
-      setStories(getStories());
+      deleteStory(id).then(() => {
+        getStories().then(setStories);
+      });
       setPendingDeleteId(null);
     } else {
       // First click — mark as pending
@@ -50,10 +57,12 @@ export default function Home() {
 
   const handleBack = useCallback(() => {
     setActiveStory(null);
-    setStories(getStories());
+    setActiveStory(null);
+    getStories().then(setStories);
     // Restore theme from settings
-    const settings = getSettings();
-    document.documentElement.setAttribute('data-theme', settings.theme);
+    getSettings().then(settings => {
+        document.documentElement.setAttribute('data-theme', settings.theme);
+    });
   }, []);
 
   if (!mounted) {
@@ -67,14 +76,15 @@ export default function Home() {
 
   return (
     <>
-      <nav className="navbar">
-        <div className="navbar-inner">
-          <a href="/" className="navbar-brand">
-            <BookOpen size={24} className="brand-icon" />
-            StoryDrift
-          </a>
+      <header className="app-header">
+        <div className="header-content">
+          <div className="logo">
+            <BookOpen size={24} />
+            <h1>StoryReader</h1>
+          </div>
+          <UserMenu user={user} />
         </div>
-      </nav>
+      </header>
 
       <main className="app-container">
         <section className="hero">
@@ -83,7 +93,6 @@ export default function Home() {
             Paste a URL from Clarkesworld, Lightspeed, Tor.com, or any online magazine.
             We&apos;ll extract the story and give you a beautiful reading experience.
           </p>
-
           <StoryImport onStoryImported={handleStoryImported} />
         </section>
 
@@ -100,7 +109,7 @@ export default function Home() {
               onOpenStory={handleOpenStory}
               onDeleteStory={handleDeleteStory}
               pendingDeleteId={pendingDeleteId}
-              onStoriesChanged={() => setStories(getStories())}
+              onStoriesChanged={() => getStories().then(setStories)}
             />
           </section>
         )}
@@ -111,7 +120,7 @@ export default function Home() {
             onOpenStory={handleOpenStory}
             onDeleteStory={handleDeleteStory}
             pendingDeleteId={pendingDeleteId}
-            onStoriesChanged={() => setStories(getStories())}
+            onStoriesChanged={() => getStories().then(setStories)}
           />
         )}
 

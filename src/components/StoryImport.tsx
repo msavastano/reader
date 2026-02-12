@@ -3,7 +3,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Link2, BookOpen, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Story } from '@/lib/types';
-import { saveStory, generateId } from '@/lib/storage';
+import { saveStory } from '@/app/actions';
+import { generateId } from '@/lib/utils'; // Keeping generateId for now, or move it to utils
 
 interface StoryImportProps {
   onStoryImported: (story: Story) => void;
@@ -61,7 +62,7 @@ export default function StoryImport({ onStoryImported }: StoryImportProps) {
         wordCount: data.wordCount,
       };
 
-      saveStory(story);
+      await saveStory(story);
       setSuccess(`"${story.title}" imported successfully!`);
       setUrl('');
       onStoryImported(story);

@@ -9,6 +9,7 @@ export interface Story {
   savedAt: number;
   wordCount: number;
   isRead?: boolean;
+  progress?: ReadingProgress;
 }
 
 export interface ReadingProgress {

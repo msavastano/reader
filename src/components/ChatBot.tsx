@@ -2,14 +2,10 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { MessageCircle, X, Send, Trash2 } from 'lucide-react';
-import { getChatHistory, saveChatHistory, clearChatHistory } from '@/lib/storage';
+import { getChatHistory, saveChatHistory, clearChatHistory } from '@/app/actions';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
+import { ChatMessage } from '@/lib/types';
 
 const SUGGESTIONS = [
   "Recommend a mind-bending sci-fi story",
@@ -28,10 +24,11 @@ export default function ChatBot() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const saved = getChatHistory() as ChatMessage[];
-    if (saved.length > 0) {
-      setMessages(saved);
-    }
+    getChatHistory().then((history) => {
+        if (history.length > 0) {
+            setMessages(history);
+        }
+    });
   }, []);
 
   useEffect(() => {
@@ -47,7 +44,12 @@ export default function ChatBot() {
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || loading) return;
 
-    const userMsg: ChatMessage = { role: 'user', content: text.trim() };
+    const userMsg: ChatMessage = { 
+      id: crypto.randomUUID(),
+      role: 'user', 
+      content: text.trim(),
+      timestamp: Date.now()
+    };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput('');
@@ -67,8 +69,10 @@ export default function ChatBot() {
       }
 
       const assistantMsg: ChatMessage = {
+        id: crypto.randomUUID(),
         role: 'assistant',
         content: data.content,
+        timestamp: Date.now()
       };
 
       const updated = [...newMessages, assistantMsg];
@@ -76,8 +80,10 @@ export default function ChatBot() {
       saveChatHistory(updated);
     } catch (err) {
       const errorMsg: ChatMessage = {
+        id: crypto.randomUUID(),
         role: 'assistant',
         content: `Sorry, I encountered an error: ${err instanceof Error ? err.message : 'Unknown error'}. Please make sure the GEMINI_API_KEY is set in your .env.local file.`,
+        timestamp: Date.now()
       };
       const updated = [...newMessages, errorMsg];
       setMessages(updated);

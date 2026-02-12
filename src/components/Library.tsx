@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Story } from '@/lib/types';
-import { getProgress, updateStoryMeta, saveProgress } from '@/lib/storage';
+import { updateStoryMeta, saveProgress } from '@/app/actions';
 import { BookOpen, Clock, Globe, Trash2, ExternalLink, Pencil, Check, X } from 'lucide-react';
 
 interface LibraryProps {
@@ -73,7 +73,7 @@ export default function Library({ stories, onOpenStory, onDeleteStory, pendingDe
   return (
     <div className="library-grid">
       {stories.map((story) => {
-        const progress = getProgress(story.id);
+        const progress = story.progress;
         const progressPct = progress
           ? Math.round((progress.currentPage / Math.max(progress.totalPages, 1)) * 100)
           : 0;

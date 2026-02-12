@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ArrowLeft, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Story, ReaderSettings as ReaderSettingsType } from '@/lib/types';
-import { getProgress, saveProgress, getSettings, saveSettings, markStoryAsRead } from '@/lib/storage';
+import { saveProgress, getSettings, saveSettings, markStoryAsRead } from '@/app/actions';
 import ReaderSettingsPanel from './ReaderSettings';
 import WordDefine from './WordDefine';
 
@@ -249,7 +249,13 @@ function paginateBlocks(
 }
 
 export default function Reader({ story, onBack }: ReaderProps) {
-  const [settings, setSettings] = useState<ReaderSettingsType>(getSettings());
+  const [settings, setSettings] = useState<ReaderSettingsType>({
+    fontFamily: 'Literata',
+    fontSize: 19,
+    lineHeight: 1.8,
+    theme: 'dark',
+    marginSize: 'normal',
+  });
   const [showSettings, setShowSettings] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [pages, setPages] = useState<string[]>([]);
@@ -267,6 +273,11 @@ export default function Reader({ story, onBack }: ReaderProps) {
   useEffect(() => {
     currentPageRef.current = currentPage;
   }, [currentPage]);
+
+  // Load settings
+  useEffect(() => {
+    getSettings().then(setSettings);
+  }, []);
 
   // Apply theme to html element
   useEffect(() => {
@@ -310,7 +321,7 @@ export default function Reader({ story, onBack }: ReaderProps) {
     // On first load, restore reading position
     if (!initialLoadDone.current) {
       initialLoadDone.current = true;
-      const progress = getProgress(story.id);
+      const progress = story.progress;
       if (progress && progress.currentPage < newPages.length) {
         setCurrentPage(progress.currentPage);
         // We'll trust the stored index matches roughly the same start block for now
