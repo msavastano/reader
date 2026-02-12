@@ -1,4 +1,7 @@
-import { auth } from '@/auth';
+import NextAuth from 'next-auth';
+import authConfig from './src/auth.config';
+
+export const { auth } = NextAuth(authConfig);
 
 export default auth((req) => {
   // Check if the user is authenticated, otherwise redirect or handle as needed
