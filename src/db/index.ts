@@ -9,6 +9,10 @@ if (!process.env.POSTGRES_URL) {
 
 const pool = new Pool({
   connectionString: process.env.POSTGRES_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
+  max: 20, // Set max pool size
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
 });
 
 pool.on('error', (err) => {
