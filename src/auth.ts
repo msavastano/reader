@@ -15,6 +15,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   callbacks: {
     async session({ session, user }) {
+      if (!process.env.AUTH_SECRET) {
+        console.error('CRITICAL: AUTH_SECRET is missing. Sessions will be invalid.');
+      }
       console.log('Session callback triggered:', { 
         sessionUser: session?.user, 
         userId: user?.id,
@@ -35,4 +38,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session(message) { console.log('[EVENT] session', message); },
   },
   debug: true,
+  trustHost: true,
 });
