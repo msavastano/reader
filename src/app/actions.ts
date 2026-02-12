@@ -41,6 +41,11 @@ export async function getCurrentUser() {
   return session?.user || null;
 }
 
+export async function checkDbConnection() {
+    const { checkDatabase } = await import('@/lib/db-check');
+    return await checkDatabase();
+}
+
 // --- Stories ---
 
 export async function getStories(): Promise<Story[]> {

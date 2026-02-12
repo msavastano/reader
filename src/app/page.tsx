@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BookOpen } from 'lucide-react';
 import { Story } from '@/lib/types';
-import { getStories, deleteStory, getSettings, getCurrentUser } from '@/app/actions';
+import { getStories, deleteStory, getSettings, getCurrentUser, checkDbConnection } from '@/app/actions';
 import StoryImport from '@/components/StoryImport';
 import Library from '@/components/Library';
 import Reader from '@/components/Reader';
@@ -26,6 +26,11 @@ export default function Home() {
     });
 
     getCurrentUser().then(setUser);
+    
+    // Debug DB connection
+    checkDbConnection().then(res => {
+        console.log('DB Check Result:', res);
+    });
   }, []);
 
   const handleStoryImported = useCallback((story: Story) => {
