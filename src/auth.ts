@@ -13,18 +13,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     verificationTokensTable: verificationTokens,
   }),
   ...authConfig,
+  session: { strategy: 'jwt' },
   callbacks: {
-    async session({ session, user }) {
+    async jwt({ token, user, account }) {
+      if (user) {
+        token.id = user.id;
+      }
+      return token;
+    },
+    async session({ session, token }) {
       if (!process.env.AUTH_SECRET) {
         console.error('CRITICAL: AUTH_SECRET is missing. Sessions will be invalid.');
       }
-      console.log('Session callback triggered:', { 
+      console.log('Session callback triggered (JWT):', { 
         sessionUser: session?.user, 
-        userId: user?.id,
+        tokenId: token?.id, 
         sessionToken: session?.sessionToken 
       });
-      if (session.user) {
-        session.user.id = user.id;
+
+      if (session.user && token.id) {
+        session.user.id = token.id as string;
       }
       return session;
     },
