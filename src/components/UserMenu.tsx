@@ -40,13 +40,15 @@ export default function UserMenu({ user }: UserMenuProps) {
 
   if (!user) {
     return (
-      <button 
-        className="btn btn-primary btn-sm"
-        onClick={() => login()}
-      >
-        <LogIn size={16} style={{ marginRight: 8 }} />
-        Sign In
-      </button>
+      <form action={login}>
+        <button 
+          className="btn btn-primary btn-sm"
+          type="submit"
+        >
+          <LogIn size={16} style={{ marginRight: 8 }} />
+          Sign In
+        </button>
+      </form>
     );
   }
 

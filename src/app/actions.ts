@@ -19,7 +19,17 @@ async function getUserId() {
 }
 
 export async function login() {
-  await signIn('google');
+  try {
+    await signIn('google');
+  } catch (error) {
+    // Signin can return a response, or throw an error (e.g. redirect)
+    // We need to rethrow it if it's a redirect, otherwise log it.
+    if ((error as Error).message === 'NEXT_REDIRECT') {
+        throw error;
+    }
+    console.error('Login error:', error);
+    throw error;
+  }
 }
 
 export async function logout() {
