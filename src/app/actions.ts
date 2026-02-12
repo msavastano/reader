@@ -33,7 +33,7 @@ export async function login() {
 }
 
 export async function logout() {
-  await signOut();
+  await signOut({ redirectTo: '/' });
 }
 
 export async function getCurrentUser() {
@@ -41,10 +41,7 @@ export async function getCurrentUser() {
   return session?.user || null;
 }
 
-export async function checkDbConnection() {
-    const { checkDatabase } = await import('@/lib/db-check');
-    return await checkDatabase();
-}
+
 
 // --- Stories ---
 

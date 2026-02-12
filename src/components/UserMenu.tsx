@@ -92,14 +92,16 @@ export default function UserMenu({ user }: UserMenuProps) {
                 <div style={{ fontSize: '0.875rem', fontWeight: 500 }}>{user.name}</div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{user.email}</div>
            </div>
-           <button 
+           <form action={logout} style={{ width: '100%' }}>
+             <button 
                 className="btn btn-ghost btn-sm"
                 style={{ width: '100%', justifyContent: 'flex-start', color: 'var(--danger)' }}
-                onClick={() => logout()}
+                type="submit"
             >
                 <LogOut size={16} style={{ marginRight: 8 }} />
                 Sign Out
             </button>
+           </form>
         </div>
       )}
       
