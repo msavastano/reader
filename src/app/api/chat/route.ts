@@ -31,16 +31,15 @@ Keep responses conversational and engaging. Use markdown formatting for story ti
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages } = await req.json();
+    const { messages, apiKey } = await req.json();
 
-    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
         {
           error:
-            'Gemini API key not configured. Please add GEMINI_API_KEY to your .env.local file.',
+            'Gemini API key not provided. Please enter your key in the chat settings.',
         },
-        { status: 500 }
+        { status: 400 }
       );
     }
 
