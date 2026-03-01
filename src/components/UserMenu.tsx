@@ -79,7 +79,7 @@ export default function UserMenu({ user }: UserMenuProps) {
             top: '100%',
             right: 0,
             marginTop: 8,
-            backgroundColor: 'var(--surface)',
+            backgroundColor: 'var(--bg-surface)',
             border: '1px solid var(--border)',
             borderRadius: 8,
             padding: 8,

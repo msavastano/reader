@@ -10,12 +10,23 @@ interface StoryImportProps {
   onStoryImported: (story: Story) => void;
 }
 
+const RSS_SITES = [
+  { value: 'clarkesworld', label: 'Clarkesworld' },
+  { value: 'lightspeed', label: 'Lightspeed' },
+];
+
 export default function StoryImport({ onStoryImported }: StoryImportProps) {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  
+
+  // RSS feed state
+  const [selectedSite, setSelectedSite] = useState('');
+  const [rssStories, setRssStories] = useState<{ title: string; url: string }[]>([]);
+  const [rssLoading, setRssLoading] = useState(false);
+  const [rssError, setRssError] = useState<string | null>(null);
+
   // Manual import state
   const [showManualInput, setShowManualInput] = useState(false);
   const [manualTitle, setManualTitle] = useState('');
@@ -28,6 +39,34 @@ export default function StoryImport({ onStoryImported }: StoryImportProps) {
       return () => clearTimeout(timer);
     }
   }, [success]);
+
+  useEffect(() => {
+    if (!selectedSite) {
+      setRssStories([]);
+      return;
+    }
+    let cancelled = false;
+    setRssLoading(true);
+    setRssError(null);
+    setRssStories([]);
+    fetch(`/api/rss?site=${selectedSite}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data.error) {
+          setRssError(data.error);
+        } else {
+          setRssStories(data.items ?? []);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setRssError('Failed to load feed');
+      })
+      .finally(() => {
+        if (!cancelled) setRssLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [selectedSite]);
 
   const handleImport = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,6 +171,39 @@ export default function StoryImport({ onStoryImported }: StoryImportProps) {
     <div>
       {!showManualInput ? (
           <form className="import-form" onSubmit={handleImport}>
+            {/* RSS feed picker */}
+            <div className="import-select-row">
+              <select
+                className="import-input"
+                value={selectedSite}
+                onChange={(e) => { setSelectedSite(e.target.value); setUrl(''); }}
+                style={{ flex: '0 0 auto' }}
+              >
+                <option value="">Browse a magazine…</option>
+                {RSS_SITES.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+
+              {selectedSite && (
+                <select
+                  className="import-input"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  disabled={rssLoading}
+                  style={{ flex: 1, minWidth: 0 }}
+                >
+                  <option value="">
+                    {rssLoading ? 'Loading stories…' : rssError ? 'Error loading feed' : 'Select a story…'}
+                  </option>
+                  {rssStories.map((s) => (
+                    <option key={s.url} value={s.url}>{s.title}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            <div className="import-url-row">
             <div className="import-input-wrapper">
               <Link2 size={18} className="import-input-icon" />
               <input
@@ -160,7 +232,8 @@ export default function StoryImport({ onStoryImported }: StoryImportProps) {
                 </>
               )}
             </button>
-            <div style={{marginTop: '0.5rem', textAlign: 'center'}}>
+            </div>
+            <div style={{textAlign: 'center'}}>
                 <button 
                     type="button" 
                     className="btn btn-link" 
