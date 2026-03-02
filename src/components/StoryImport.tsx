@@ -1,37 +1,48 @@
-'use client';
+"use client";
 
-import { useState, useCallback, useEffect } from 'react';
-import { Link2, BookOpen, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { Story } from '@/lib/types';
-import { saveStory } from '@/app/actions';
-import { generateId } from '@/lib/utils'; // Keeping generateId for now, or move it to utils
+import { useState, useCallback, useEffect } from "react";
+import {
+  Link2,
+  BookOpen,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+} from "lucide-react";
+import { Story } from "@/lib/types";
+import { saveStory } from "@/app/actions";
+import { generateId } from "@/lib/utils"; // Keeping generateId for now, or move it to utils
 
 interface StoryImportProps {
   onStoryImported: (story: Story) => void;
 }
 
 const RSS_SITES = [
-  { value: 'clarkesworld', label: 'Clarkesworld' },
-  { value: 'lightspeed', label: 'Lightspeed' },
+  { value: "clarkesworld", label: "Clarkesworld" },
+  { value: "lightspeed", label: "Lightspeed" },
+  { value: "strange horizons", label: "Strange Horizons" },
+  { value: "nightmare", label: "Nightmare Magazine" },
+  { value: "apex", label: "Apex Magazine" },
 ];
 
 export default function StoryImport({ onStoryImported }: StoryImportProps) {
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   // RSS feed state
-  const [selectedSite, setSelectedSite] = useState('');
-  const [rssStories, setRssStories] = useState<{ title: string; url: string }[]>([]);
+  const [selectedSite, setSelectedSite] = useState("");
+  const [rssStories, setRssStories] = useState<
+    { title: string; url: string; author: string }[]
+  >([]);
   const [rssLoading, setRssLoading] = useState(false);
   const [rssError, setRssError] = useState<string | null>(null);
 
   // Manual import state
   const [showManualInput, setShowManualInput] = useState(false);
-  const [manualTitle, setManualTitle] = useState('');
-  const [manualAuthor, setManualAuthor] = useState('');
-  const [manualContent, setManualContent] = useState('');
+  const [manualTitle, setManualTitle] = useState("");
+  const [manualAuthor, setManualAuthor] = useState("");
+  const [manualContent, setManualContent] = useState("");
 
   useEffect(() => {
     if (success) {
@@ -60,156 +71,178 @@ export default function StoryImport({ onStoryImported }: StoryImportProps) {
         }
       })
       .catch(() => {
-        if (!cancelled) setRssError('Failed to load feed');
+        if (!cancelled) setRssError("Failed to load feed");
       })
       .finally(() => {
         if (!cancelled) setRssLoading(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [selectedSite]);
 
-  const handleImport = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!url.trim() || loading) return;
+  const handleImport = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!url.trim() || loading) return;
 
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
+      setLoading(true);
+      setError(null);
+      setSuccess(null);
 
-    try {
-      const res = await fetch('/api/scrape', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url.trim() }),
-      });
-
-      let data;
       try {
-        data = await res.json();
-      } catch {
-        throw new Error(`Server returned ${res.status} ${res.statusText}`);
-      }
+        const res = await fetch("/api/scrape", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: url.trim() }),
+        });
 
-      if (!res.ok) {
-        if (res.status === 403 || res.status === 422) {
-             setError(data.error || "This site blocks automated access.");
-             // Automatically show manual input on these specific errors
-             setShowManualInput(true); 
-             // Pre-fill URL if we can
-             return; 
+        let data;
+        try {
+          data = await res.json();
+        } catch {
+          throw new Error(`Server returned ${res.status} ${res.statusText}`);
         }
-        throw new Error(data.error || `Failed to import: ${res.status} ${res.statusText}`);
-      }
 
-      const story: Story = {
-        id: generateId(),
-        title: data.title,
-        author: data.author,
-        content: data.content,
-        excerpt: data.excerpt,
-        siteName: data.siteName,
-        url: url.trim(),
-        savedAt: Date.now(),
-        wordCount: data.wordCount,
-      };
+        if (!res.ok) {
+          if (res.status === 403 || res.status === 422) {
+            setError(data.error || "This site blocks automated access.");
+            // Automatically show manual input on these specific errors
+            setShowManualInput(true);
+            // Pre-fill URL if we can
+            return;
+          }
+          throw new Error(
+            data.error || `Failed to import: ${res.status} ${res.statusText}`,
+          );
+        }
 
-      await saveStory(story);
-      setSuccess(`"${story.title}" imported successfully!`);
-      setUrl('');
-      onStoryImported(story);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to import story');
-    } finally {
-      setLoading(false);
-    }
-  }, [url, loading, onStoryImported]);
-
-  const handleManualImport = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!manualTitle.trim() || !manualContent.trim()) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-        const wordCount = manualContent.split(/\s+/).filter(Boolean).length;
-        const excerpt = manualContent.substring(0, 200) + '...';
-        
         const story: Story = {
-            id: generateId(),
-            title: manualTitle.trim(),
-            author: manualAuthor.trim() || 'Unknown Author',
-            content: `<p>${manualContent.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br />')}</p>`, // Simple formatting
-            excerpt: excerpt,
-            siteName: 'Manual Import',
-            url: url.trim() || '',
-            savedAt: Date.now(),
-            wordCount: wordCount,
+          id: generateId(),
+          title: data.title,
+          author: data.author,
+          content: data.content,
+          excerpt: data.excerpt,
+          siteName: data.siteName,
+          url: url.trim(),
+          savedAt: Date.now(),
+          wordCount: data.wordCount,
         };
 
         await saveStory(story);
         setSuccess(`"${story.title}" imported successfully!`);
-        
-        // Reset fields
-        setManualTitle('');
-        setManualAuthor('');
-        setManualContent('');
-        setShowManualInput(false);
-        setUrl('');
-        
+        setUrl("");
         onStoryImported(story);
-    } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to save manual story');
-    } finally {
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to import story");
+      } finally {
         setLoading(false);
-    }
+      }
+    },
+    [url, loading, onStoryImported],
+  );
 
-  }, [manualTitle, manualAuthor, manualContent, url, onStoryImported]);
+  const handleManualImport = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!manualTitle.trim() || !manualContent.trim()) return;
 
+      setLoading(true);
+      setError(null);
+
+      try {
+        const wordCount = manualContent.split(/\s+/).filter(Boolean).length;
+        const excerpt = manualContent.substring(0, 200) + "...";
+
+        const story: Story = {
+          id: generateId(),
+          title: manualTitle.trim(),
+          author: manualAuthor.trim() || "Unknown Author",
+          content: `<p>${manualContent.replace(/\n\n/g, "</p><p>").replace(/\n/g, "<br />")}</p>`, // Simple formatting
+          excerpt: excerpt,
+          siteName: "Manual Import",
+          url: url.trim() || "",
+          savedAt: Date.now(),
+          wordCount: wordCount,
+        };
+
+        await saveStory(story);
+        setSuccess(`"${story.title}" imported successfully!`);
+
+        // Reset fields
+        setManualTitle("");
+        setManualAuthor("");
+        setManualContent("");
+        setShowManualInput(false);
+        setUrl("");
+
+        onStoryImported(story);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Failed to save manual story",
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [manualTitle, manualAuthor, manualContent, url, onStoryImported],
+  );
 
   return (
     <div>
       {!showManualInput ? (
-          <form className="import-form" onSubmit={handleImport}>
-            {/* RSS feed picker */}
-            <div className="import-select-row">
+        <form className="import-form" onSubmit={handleImport}>
+          {/* RSS feed picker */}
+          <div className="import-select-row">
+            <select
+              className="import-input"
+              value={selectedSite}
+              onChange={(e) => {
+                setSelectedSite(e.target.value);
+                setUrl("");
+              }}
+              style={{ flex: "0 0 auto" }}
+            >
+              <option value="">Browse a magazine…</option>
+              {RSS_SITES.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+
+            {selectedSite && (
               <select
                 className="import-input"
-                value={selectedSite}
-                onChange={(e) => { setSelectedSite(e.target.value); setUrl(''); }}
-                style={{ flex: '0 0 auto' }}
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                disabled={rssLoading}
+                style={{ flex: 1, minWidth: 0 }}
               >
-                <option value="">Browse a magazine…</option>
-                {RSS_SITES.map((s) => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
+                <option value="">
+                  {rssLoading
+                    ? "Loading stories…"
+                    : rssError
+                      ? "Error loading feed"
+                      : "Select a story…"}
+                </option>
+                {rssStories.map((s) => (
+                  <option key={s.url} value={s.url}>
+                    {s.title}
+                    {s.author ? ` — ${s.author}` : ""}
+                  </option>
                 ))}
               </select>
+            )}
+          </div>
 
-              {selectedSite && (
-                <select
-                  className="import-input"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  disabled={rssLoading}
-                  style={{ flex: 1, minWidth: 0 }}
-                >
-                  <option value="">
-                    {rssLoading ? 'Loading stories…' : rssError ? 'Error loading feed' : 'Select a story…'}
-                  </option>
-                  {rssStories.map((s) => (
-                    <option key={s.url} value={s.url}>{s.title}</option>
-                  ))}
-                </select>
-              )}
-            </div>
-
-            <div className="import-url-row">
+          <div className="import-url-row">
             <div className="import-input-wrapper">
               <Link2 size={18} className="import-input-icon" />
               <input
                 type="url"
                 className="import-input"
-                placeholder="Paste a story URL from Clarkesworld, Lightspeed, Tor.com..."
+                placeholder="Paste a story URL from Clarkesworld, Lightspeed, Nightmare..."
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 disabled={loading}
@@ -222,7 +255,11 @@ export default function StoryImport({ onStoryImported }: StoryImportProps) {
             >
               {loading ? (
                 <>
-                  <Loader2 size={18} className="spinning" style={{ animation: 'spin 0.7s linear infinite' }} />
+                  <Loader2
+                    size={18}
+                    className="spinning"
+                    style={{ animation: "spin 0.7s linear infinite" }}
+                  />
                   Importing...
                 </>
               ) : (
@@ -232,74 +269,90 @@ export default function StoryImport({ onStoryImported }: StoryImportProps) {
                 </>
               )}
             </button>
-            </div>
-            <div style={{textAlign: 'center'}}>
-                <button 
-                    type="button" 
-                    className="btn btn-link" 
-                    style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}
-                    onClick={() => setShowManualInput(true)}
-                >
-                    Or paste text manually
-                </button>
-            </div>
-          </form>
+          </div>
+          <div style={{ textAlign: "center" }}>
+            <button
+              type="button"
+              className="btn btn-link"
+              style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}
+              onClick={() => setShowManualInput(true)}
+            >
+              Or paste text manually
+            </button>
+          </div>
+        </form>
       ) : (
-          <form className="import-form manual-import-form" onSubmit={handleManualImport} style={{display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem'}}>
-                  <h3 style={{margin: 0, fontSize: '1.1rem'}}>Manual Import</h3>
-                  <button 
-                    type="button" 
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => setShowManualInput(false)}
-                  >
-                    Cancel
-                  </button>
-              </div>
-              
-              <div className="form-group">
-                <input
-                    type="text"
-                    className="import-input"
-                    placeholder="Story Title"
-                    value={manualTitle}
-                    onChange={(e) => setManualTitle(e.target.value)}
-                    required
-                    style={{width: '100%'}}
-                />
-              </div>
-              
-              <div className="form-group">
-                <input
-                    type="text"
-                    className="import-input"
-                    placeholder="Author"
-                    value={manualAuthor}
-                    onChange={(e) => setManualAuthor(e.target.value)}
-                    style={{width: '100%'}}
-                />
-              </div>
+        <form
+          className="import-form manual-import-form"
+          onSubmit={handleManualImport}
+          style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "0.5rem",
+            }}
+          >
+            <h3 style={{ margin: 0, fontSize: "1.1rem" }}>Manual Import</h3>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => setShowManualInput(false)}
+            >
+              Cancel
+            </button>
+          </div>
 
-               <div className="form-group">
-                <textarea
-                    className="import-input"
-                    placeholder="Paste story content here..."
-                    value={manualContent}
-                    onChange={(e) => setManualContent(e.target.value)}
-                    required
-                    style={{width: '100%', minHeight: '200px', fontFamily: 'inherit', resize: 'vertical'}}
-                />
-              </div>
+          <div className="form-group">
+            <input
+              type="text"
+              className="import-input"
+              placeholder="Story Title"
+              value={manualTitle}
+              onChange={(e) => setManualTitle(e.target.value)}
+              required
+              style={{ width: "100%" }}
+            />
+          </div>
 
-               <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={loading || !manualTitle.trim() || !manualContent.trim()}
-                  style={{alignSelf: 'flex-end'}}
-                >
-                  {loading ? 'Saving...' : 'Save Story'}
-                </button>
-          </form>
+          <div className="form-group">
+            <input
+              type="text"
+              className="import-input"
+              placeholder="Author"
+              value={manualAuthor}
+              onChange={(e) => setManualAuthor(e.target.value)}
+              style={{ width: "100%" }}
+            />
+          </div>
+
+          <div className="form-group">
+            <textarea
+              className="import-input"
+              placeholder="Paste story content here..."
+              value={manualContent}
+              onChange={(e) => setManualContent(e.target.value)}
+              required
+              style={{
+                width: "100%",
+                minHeight: "200px",
+                fontFamily: "inherit",
+                resize: "vertical",
+              }}
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={loading || !manualTitle.trim() || !manualContent.trim()}
+            style={{ alignSelf: "flex-end" }}
+          >
+            {loading ? "Saving..." : "Save Story"}
+          </button>
+        </form>
       )}
 
       {loading && !showManualInput && (
@@ -313,16 +366,16 @@ export default function StoryImport({ onStoryImported }: StoryImportProps) {
         <div className="status-message status-error">
           <AlertCircle size={16} />
           {error}
-           {!showManualInput && (
-               <div style={{marginTop: '0.5rem'}}>
-                   <button 
-                    className="btn btn-sm btn-outline"
-                    onClick={() => setShowManualInput(true)}
-                   >
-                       Try Manual Import
-                   </button>
-               </div>
-           )}
+          {!showManualInput && (
+            <div style={{ marginTop: "0.5rem" }}>
+              <button
+                className="btn btn-sm btn-outline"
+                onClick={() => setShowManualInput(true)}
+              >
+                Try Manual Import
+              </button>
+            </div>
+          )}
         </div>
       )}
 
