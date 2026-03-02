@@ -361,6 +361,7 @@ select.import-input {
   background-position: right 14px center;
   background-size: 12px;
   cursor: pointer;
+  box-shadow: var(--shadow-sm);
 }
 
 .import-input:focus {
