@@ -24,6 +24,24 @@
 
 ## Standard Feature Flow
 
+```mermaid
+flowchart LR
+    A([feature/my-feature]) -->|push| B[Deploy to mocked\nRun Playwright tests]
+    B -->|tests pass| C{PR to develop}
+    C -->|merge| D[Deploy to dev]
+    D --> E{PR to master}
+    E -->|merge| F[Deploy to qa]
+    F -->|QA sign-off| G[Tag v1.2.0]
+    G --> H([Deploy to prod])
+    H --> I[Back-merge\nmaster → develop]
+
+    style A fill:#4a90d9,color:#fff
+    style H fill:#27ae60,color:#fff
+    style B fill:#8e44ad,color:#fff
+    style D fill:#e67e22,color:#fff
+    style F fill:#c0392b,color:#fff
+```
+
 ```
 feature/my-feature
     → push → auto-deploy to mocked → run regression UI tests
@@ -48,6 +66,21 @@ git push origin develop
 ## Hotfix Flow
 
 Both QA and prod hotfixes follow the same flow — cut from `master`, which always reflects the latest prod release.
+
+```mermaid
+flowchart LR
+    M([master]) -->|cut branch| A([hotfix/fix-name])
+    A -->|push + PR| B{PR to master}
+    B -->|merge| C[Deploy to qa\nVerify fix]
+    C -->|verified| D[Tag v1.2.1]
+    D --> E([Deploy to prod])
+    E --> F[Back-merge\nmaster → develop]
+
+    style M fill:#4a90d9,color:#fff
+    style A fill:#e74c3c,color:#fff
+    style E fill:#27ae60,color:#fff
+    style C fill:#c0392b,color:#fff
+```
 
 ```
 hotfix/fix-name  (cut from master)
@@ -81,6 +114,18 @@ Then PR back to `master` and carefully review the merge diff, as `master` HEAD m
 ### Key Principle: Build Once, Promote the Artifact
 
 Build the image/bundle once on `develop`. Promote that exact artifact through qa → prod rather than rebuilding. This guarantees what was tested is exactly what ships to production.
+
+```mermaid
+flowchart LR
+    A[Merge to develop\nBuild once] --> B[artifact :dev\nDeploy to dev]
+    B -->|Merge to master| C[artifact :qa\nDeploy to qa]
+    C -->|Push tag v*.*.*| D[artifact :prod\nDeploy to prod]
+
+    style A fill:#e67e22,color:#fff
+    style B fill:#e67e22,color:#fff
+    style C fill:#c0392b,color:#fff
+    style D fill:#27ae60,color:#fff
+```
 
 ---
 
