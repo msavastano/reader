@@ -1,0 +1,102 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx playwright:*)",
+      "Bash(curl:*)",
+      "Bash(npm audit:*)",
+      "Bash(npm list:*)",
+      "Bash(npm install:*)",
+      "Read(//c/Users/millh/.claude/**)",
+      "Bash(chmod:*)"
+    ],
+    "deny": ["Read(**/.env)", "Read(**/.env.*)"]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /path/to/project && npx tsc -b --noEmit 2>&1 | tail -20; if [ ${PIPESTATUS[0]} -ne 0 ]; then echo '\\n❌ TypeScript errors found. Fix them before building.'; exit 1; fi"
+          },
+          {
+            "type": "command",
+            "command": "bash \"/c/Users/millh/Local Documents/dev/reader/.claude/hooks/pre-tool-guard.sh\""
+          },
+          {
+            "type": "agent",
+            "prompt": "A Bash command is about to run. ONLY act if the command contains 'drizzle-kit migrate' or 'drizzle-kit push'. In that case, read src/db/schema.ts and check that the schema looks intentional and safe (no accidental column drops or type changes). For all other commands return {\"ok\": true} immediately without reading any files.",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write(src/**/*.{ts,tsx})",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /path/to/project && npx tsc -b --noEmit 2>&1 | tail -20; EXIT=$?; if [ $EXIT -ne 0 ]; then echo '\\n⚠️  TypeScript errors introduced. Please fix before continuing.'; fi; exit 0"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"/c/Users/millh/Local Documents/dev/reader/.claude/hooks/tsc-check.sh\""
+          },
+          {
+            "type": "prompt",
+            "prompt": "A file was just edited. If the change adds direct database queries (Drizzle ORM calls or raw SQL) outside of src/app/actions.ts, return {\"ok\": false, \"reason\": \"DB access must stay in src/app/actions.ts per project architecture\"}. Otherwise return {\"ok\": true}.",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"/c/Users/millh/Local Documents/dev/reader/.claude/hooks/session-start.sh\""
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"/c/Users/millh/Local Documents/dev/reader/.claude/hooks/prompt-submit-log.sh\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://localhost:9999/session-end",
+            "timeout": 2
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"/c/Users/millh/Local Documents/dev/reader/.claude/hooks/notify.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}
